@@ -115,6 +115,19 @@ cmp(const void *a, const void *b)
 	return strcmp(((struct word *)a)->name, ((struct word *)b)->name);
 }
 
+struct word *
+lookup(const char *s)
+{
+	struct word **w;
+	w = tfind(&s, &dict, cmp);
+	if(!w)
+	{
+		fprintf(stderr, "Word not found: %s\n", yylval.string);
+		exit(EXIT_FAILURE);
+	}
+	return *w;
+}
+
 void run_word(struct word *w);
 
 int early_return = 0;
@@ -380,14 +393,32 @@ recurse(void)
 void
 define(void)
 {
-	current_word = calloc(1, sizeof(*current_word));
-	if(yylex() != T_WORD)
+	if(state == S_COMPILE)
 	{
-		return;
+		fprintf(stderr, "Nested definitions are not allowed\n");
+		exit(EXIT_FAILURE);
 	}
-	current_word->name = yylval.string;
-	current_word->codetype = C_USER;
-	state = S_COMPILE;
+	current_word = calloc(1, sizeof(*current_word));
+	switch(yylex())
+	{
+	case T_WORD:
+		current_word->name = yylval.string;
+		current_word->codetype = C_USER;
+		state = S_COMPILE;
+		break;
+	case T_NUMBER:
+		fprintf(stderr, "Expected word, got number: %d", yylval.number);
+		exit(EXIT_FAILURE);
+		break;
+	case T_STRING:
+		fprintf(stderr, "Expected word, got string: \"%s\"\n", yylval.string);
+		exit(EXIT_FAILURE);
+		break;
+	case 0:
+		fprintf(stderr, "Unexpected end of file\n");
+		exit(EXIT_FAILURE);
+		break;
+	}
 }
 
 void
@@ -419,17 +450,104 @@ end(void)
 void
 tick(void)
 {
-	struct word **w;
-	if(yylex() != T_WORD)
+	struct word *w;
+	token a;
+	switch(yylex())
 	{
-		return;
-	}
-	w = tfind(&yylval, &dict, cmp);
-	if(w)
-	{
-		token a;
-		a.number = (int)*w;
+	case T_WORD:
+		w = lookup(yylval.string);
+		a.number = (int)w;
 		push(a);
+		break;
+	case T_NUMBER:
+		fprintf(stderr, "Expected word, got number: %d", yylval.number);
+		exit(EXIT_FAILURE);
+		break;
+	case T_STRING:
+		fprintf(stderr, "Expected word, got string: \"%s\"\n", yylval.string);
+		exit(EXIT_FAILURE);
+		break;
+	case 0:
+		fprintf(stderr, "Unexpected end of file\n");
+		exit(EXIT_FAILURE);
+		break;
+	}
+}
+
+void
+display_nodename(const void *nodep, const VISIT which, const int depth)
+{
+	struct word *const *w = nodep;
+	(void)depth;
+	switch(which)
+	{
+	case postorder:
+	case leaf:
+		printf("%s ", (*w)->name);
+		break;
+	case preorder:
+	case endorder:
+		break;
+	}
+}
+
+void
+words(void)
+{
+	twalk(dict, display_nodename);
+	printf("\n");
+}
+
+void
+see(void)
+{
+	struct word *w;
+	struct word **ip;
+	switch(yylex())
+	{
+	case T_WORD:
+		w = lookup(yylval.string);
+		switch(w->codetype)
+		{
+		case C_NATIVE:
+			printf("(native)\n");
+			break;
+		case C_TOKEN:
+			/* should not be any named tokens */
+			break;
+		case C_USER:
+			printf(": %s ", w->name);
+			for(ip = w->code.user.user; *ip; ip++)
+			{
+				if(*ip == w)
+				{
+					printf("recurse ");
+				}
+				else if((*ip)->codetype == C_TOKEN)
+				{
+					printf("%d ", (*ip)->code.token.number);
+				}
+				else
+				{
+					printf("%s ", (*ip)->name);
+				}
+			}
+			printf(";\n");
+			break;
+		}
+		break;
+	case T_NUMBER:
+		fprintf(stderr, "Expected word, got number: %d", yylval.number);
+		exit(EXIT_FAILURE);
+		break;
+	case T_STRING:
+		fprintf(stderr, "Expected word, got string: \"%s\"\n", yylval.string);
+		exit(EXIT_FAILURE);
+		break;
+	case 0:
+		fprintf(stderr, "Unexpected end of file\n");
+		exit(EXIT_FAILURE);
+		break;
 	}
 }
 
@@ -464,6 +582,8 @@ struct word primitives[] =
 	{"not", 0, C_NATIVE, {not}},
 	{"@", 0, C_NATIVE, {fetch}},
 	{"!", 0, C_NATIVE, {store}},
+	{"words", 0, C_NATIVE, {words}},
+	{"see", 1, C_NATIVE, {see}},
 };
 
 #define arrsz(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -507,7 +627,7 @@ run_word(struct word *w)
 void
 interpret_token(enum type type)
 {
-	struct word **w;
+	struct word *w;
 	switch(type)
 	{
 	case T_STRING:
@@ -515,11 +635,8 @@ interpret_token(enum type type)
 		push(yylval);
 		break;
 	case T_WORD:
-		w = tfind(&yylval, &dict, cmp);
-		if(w)
-		{
-			run_word(*w);
-		}
+		w = lookup(yylval.string);
+		run_word(w);
 		break;
 	}
 }
@@ -527,30 +644,25 @@ interpret_token(enum type type)
 void
 compile_token(enum type type)
 {
-	struct word **w;
-	struct word *t;
+	struct word *w;
 	switch(type)
 	{
 	case T_STRING:
 	case T_NUMBER:
-		t = calloc(1, sizeof(*t));
-		t->codetype = C_TOKEN;
-		t->code.token = yylval;
-		usercode_append(&current_word->code.user, t);
+		w = calloc(1, sizeof(*w));
+		w->codetype = C_TOKEN;
+		w->code.token = yylval;
+		usercode_append(&current_word->code.user, w);
 		break;
 	case T_WORD:
-		w = tfind(&yylval, &dict, cmp);
-		if(!w)
+		w = lookup(yylval.string);
+		if(w->immediate)
 		{
-			break;
-		}
-		if((*w)->immediate)
-		{
-			run_word(*w);
+			run_word(w);
 		}
 		else
 		{
-			usercode_append(&current_word->code.user, *w);
+			usercode_append(&current_word->code.user, w);
 		}
 		break;
 	}
