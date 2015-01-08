@@ -1,5 +1,7 @@
 CFLAGS=-Wall -Wextra -pedantic -ansi -g
 
+main: LDLIBS=-ldl
+
 main: lexer.o forth.o
 
 main.o: forth.h lexer.h
