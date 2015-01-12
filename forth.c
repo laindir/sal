@@ -413,44 +413,67 @@ read_word(void)
 	return NULL;
 }
 
+int compilation_depth;
+
 void
 define(void)
 {
-	if(state == S_COMPILE)
+	if(compilation_depth == 0)
+	{
+		current_word = calloc(1, sizeof(*current_word));
+		current_word->name = read_word();
+		current_word->codetype = C_USER;
+	}
+	else
 	{
 		fprintf(stderr, "Nested definitions are not allowed\n");
 		exit(EXIT_FAILURE);
 	}
-	current_word = calloc(1, sizeof(*current_word));
-	current_word->name = read_word();
-	current_word->codetype = C_USER;
-	state = S_COMPILE;
+	compilation_depth++;
 }
+
+struct word *noname_word;
 
 void
 noname(void)
 {
-	current_word = calloc(1, sizeof(*current_word));
-	current_word->codetype = C_USER;
-	state = S_COMPILE;
+	if(compilation_depth == 0)
+	{
+		current_word = calloc(1, sizeof(*current_word));
+		current_word->codetype = C_USER;
+	}
+	else
+	{
+		usercode_append(&current_word->code.user, noname_word);
+	}
+	compilation_depth++;
 }
+
+struct word *end_word;
 
 void
 end(void)
 {
-	usercode_append(&current_word->code.user, NULL);
-	if(current_word->name)
+	compilation_depth--;
+	if(compilation_depth == 0)
 	{
-		tsearch(current_word, &dict, cmp);
+		usercode_append(&current_word->code.user, NULL);
+		if(current_word->name)
+		{
+			tsearch(current_word, &dict, cmp);
+		}
+		else
+		{
+			token t;
+			t.number = (int)current_word;
+			push(t);
+		}
+		current_word = NULL;
 	}
 	else
 	{
-		token t;
-		t.number = (int)current_word;
-		push(t);
+		usercode_append(&current_word->code.user, end_word);
 	}
-	state = S_INTERPRET;
-	current_word = NULL;
 }
 
 void
@@ -534,7 +557,7 @@ struct word primitives[] =
 	{"%", 0, C_NATIVE, {mod}},
 	{".", 0, C_NATIVE, {print}},
 	{":", 1, C_NATIVE, {define}},
-	{";", 1, C_NATIVE, {end}},
+	{";", 1024, C_NATIVE, {end}},
 	{"imm", 1, C_NATIVE, {immediate}},
 	{"recurse", 1, C_NATIVE, {recurse}},
 	{"drop", 0, C_NATIVE, {drop}},
@@ -543,7 +566,7 @@ struct word primitives[] =
 	{"resolve", 0, C_NATIVE, {resolve}},
 	{"libcall", 0, C_NATIVE, {libcall}},
 	{"execute", 0, C_NATIVE, {execute}},
-	{":noname", 1, C_NATIVE, {noname}},
+	{":noname", 1024, C_NATIVE, {noname}},
 	{"'", 1, C_NATIVE, {tick}},
 	{"and", 0, C_NATIVE, {and}},
 	{"or", 0, C_NATIVE, {or}},
@@ -565,6 +588,38 @@ init(void)
 	{
 		tsearch(&primitives[i], &dict, cmp);
 	}
+	noname_word = lookup(":noname");
+	end_word = lookup(";");
+}
+
+void
+do_value(void)
+{
+	if(compilation_depth == 0)
+	{
+		push(yylval);
+	}
+	else
+	{
+		struct word *w;
+		w = calloc(1, sizeof(*w));
+		w->codetype = C_TOKEN;
+		w->code.token = yylval;
+		usercode_append(&current_word->code.user, w);
+	}
+}
+
+void
+do_word(struct word *w)
+{
+	if(compilation_depth <= w->immediate)
+	{
+		run_word(w);
+	}
+	else
+	{
+		usercode_append(&current_word->code.user, w);
+	}
 }
 
 void
@@ -583,7 +638,7 @@ run_word(struct word *w)
 			{
 				ip = w->code.user.user;
 			}
-			run_word(*ip);
+			do_word(*ip);
 		}
 		early_return = 0;
 		break;
@@ -594,59 +649,18 @@ run_word(struct word *w)
 }
 
 void
-interpret_token(enum type type)
-{
-	struct word *w;
-	switch(type)
-	{
-	case T_STRING:
-	case T_NUMBER:
-		push(yylval);
-		break;
-	case T_WORD:
-		w = lookup(yylval.string);
-		run_word(w);
-		break;
-	}
-}
-
-void
-compile_token(enum type type)
-{
-	struct word *w;
-	switch(type)
-	{
-	case T_STRING:
-	case T_NUMBER:
-		w = calloc(1, sizeof(*w));
-		w->codetype = C_TOKEN;
-		w->code.token = yylval;
-		usercode_append(&current_word->code.user, w);
-		break;
-	case T_WORD:
-		w = lookup(yylval.string);
-		if(w->immediate)
-		{
-			run_word(w);
-		}
-		else
-		{
-			usercode_append(&current_word->code.user, w);
-		}
-		break;
-	}
-}
-
-void
 process_token(enum type type)
 {
-	switch(state)
+	struct word *w;
+	switch(type)
 	{
-	case S_INTERPRET:
-		interpret_token(type);
+	case T_NUMBER:
+	case T_STRING:
+		do_value();
 		break;
-	case S_COMPILE:
-		compile_token(type);
+	case T_WORD:
+		w = lookup(yylval.string);
+		do_word(w);
 		break;
 	}
 }
