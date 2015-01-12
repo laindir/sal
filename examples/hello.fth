@@ -1,4 +1,4 @@
 "printf" "libc.so" resolve
-: prints "%s" swap imm 2 libcall ;
+: prints "%s" swap literal 2 libcall ;
 "Hello, World!
 " prints

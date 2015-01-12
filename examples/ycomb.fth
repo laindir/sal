@@ -1,9 +1,9 @@
 : Y
 	:noname dup
-		:noname imm imm execute execute ;
-	imm execute ;
+		:noname literal literal execute execute ;
+	literal execute ;
 dup execute ;
 :noname
-	:noname 1 swap zret swap drop dup 1 - imm execute * ;
+	:noname 1 swap zret swap drop dup 1 - literal execute * ;
 ;
-Y : fact ( n -- n! ) imm execute ;
+Y : fact ( n -- n! ) literal execute ;

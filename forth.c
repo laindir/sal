@@ -375,7 +375,7 @@ print(void)
 }
 
 void
-immediate(void)
+literal(void)
 {
 	token a = pop();
 	struct word *w = calloc(1, sizeof(*w));
@@ -558,7 +558,7 @@ struct word primitives[] =
 	{".", 0, C_NATIVE, {print}},
 	{":", 1, C_NATIVE, {define}},
 	{";", 1024, C_NATIVE, {end}},
-	{"imm", 1, C_NATIVE, {immediate}},
+	{"literal", 1, C_NATIVE, {literal}},
 	{"recurse", 1, C_NATIVE, {recurse}},
 	{"drop", 0, C_NATIVE, {drop}},
 	{"dup", 0, C_NATIVE, {dupl}},
