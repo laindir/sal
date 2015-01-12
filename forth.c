@@ -390,24 +390,15 @@ recurse(void)
 	usercode_append(&current_word->code.user, current_word);
 }
 
-void
-define(void)
+char *
+read_word(void)
 {
-	if(state == S_COMPILE)
-	{
-		fprintf(stderr, "Nested definitions are not allowed\n");
-		exit(EXIT_FAILURE);
-	}
-	current_word = calloc(1, sizeof(*current_word));
 	switch(yylex())
 	{
 	case T_WORD:
-		current_word->name = yylval.string;
-		current_word->codetype = C_USER;
-		state = S_COMPILE;
-		break;
+		return yylval.string;
 	case T_NUMBER:
-		fprintf(stderr, "Expected word, got number: %d", yylval.number);
+		fprintf(stderr, "Expected word, got number: %d\n", yylval.number);
 		exit(EXIT_FAILURE);
 		break;
 	case T_STRING:
@@ -419,6 +410,21 @@ define(void)
 		exit(EXIT_FAILURE);
 		break;
 	}
+	return NULL;
+}
+
+void
+define(void)
+{
+	if(state == S_COMPILE)
+	{
+		fprintf(stderr, "Nested definitions are not allowed\n");
+		exit(EXIT_FAILURE);
+	}
+	current_word = calloc(1, sizeof(*current_word));
+	current_word->name = read_word();
+	current_word->codetype = C_USER;
+	state = S_COMPILE;
 }
 
 void
@@ -450,28 +456,9 @@ end(void)
 void
 tick(void)
 {
-	struct word *w;
 	token a;
-	switch(yylex())
-	{
-	case T_WORD:
-		w = lookup(yylval.string);
-		a.number = (int)w;
-		push(a);
-		break;
-	case T_NUMBER:
-		fprintf(stderr, "Expected word, got number: %d", yylval.number);
-		exit(EXIT_FAILURE);
-		break;
-	case T_STRING:
-		fprintf(stderr, "Expected word, got string: \"%s\"\n", yylval.string);
-		exit(EXIT_FAILURE);
-		break;
-	case 0:
-		fprintf(stderr, "Unexpected end of file\n");
-		exit(EXIT_FAILURE);
-		break;
-	}
+	a.number = (int)lookup(read_word());
+	push(a);
 }
 
 void
@@ -503,50 +490,32 @@ see(void)
 {
 	struct word *w;
 	struct word **ip;
-	switch(yylex())
+	w = lookup(read_word());
+	switch(w->codetype)
 	{
-	case T_WORD:
-		w = lookup(yylval.string);
-		switch(w->codetype)
+	case C_NATIVE:
+		printf("(native)\n");
+		break;
+	case C_USER:
+		printf(": %s ", w->name);
+		for(ip = w->code.user.user; *ip; ip++)
 		{
-		case C_NATIVE:
-			printf("(native)\n");
-			break;
-		case C_TOKEN:
-			/* should not be any named tokens */
-			break;
-		case C_USER:
-			printf(": %s ", w->name);
-			for(ip = w->code.user.user; *ip; ip++)
+			if(*ip == w)
 			{
-				if(*ip == w)
-				{
-					printf("recurse ");
-				}
-				else if((*ip)->codetype == C_TOKEN)
-				{
-					printf("%d ", (*ip)->code.token.number);
-				}
-				else
-				{
-					printf("%s ", (*ip)->name);
-				}
+				printf("recurse ");
 			}
-			printf(";\n");
-			break;
+			else if((*ip)->codetype == C_TOKEN)
+			{
+				printf("%d ", (*ip)->code.token.number);
+			}
+			else
+			{
+				printf("%s ", (*ip)->name);
+			}
 		}
+		printf(";\n");
 		break;
-	case T_NUMBER:
-		fprintf(stderr, "Expected word, got number: %d", yylval.number);
-		exit(EXIT_FAILURE);
-		break;
-	case T_STRING:
-		fprintf(stderr, "Expected word, got string: \"%s\"\n", yylval.string);
-		exit(EXIT_FAILURE);
-		break;
-	case 0:
-		fprintf(stderr, "Unexpected end of file\n");
-		exit(EXIT_FAILURE);
+	case C_TOKEN:
 		break;
 	}
 }
