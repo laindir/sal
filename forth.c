@@ -149,6 +149,41 @@ resolve(void)
 }
 
 void
+load(void)
+{
+	void *so;
+	token a;
+	char *msg;
+	dlerror();
+	so = dlopen(pop().string, RTLD_LAZY);
+	msg = dlerror();
+	if(msg)
+	{
+		fprintf(stderr, "%s\n", msg);
+	}
+	a.number = (int)so;
+	push(a);
+}
+
+void
+import(void)
+{
+	token a = pop();
+	token b = pop();
+	void *f;
+	char *msg;
+	dlerror();
+	f = dlsym(b.string, a.string);
+	msg = dlerror();
+	if(msg)
+	{
+		fprintf(stderr, "%s\n", msg);
+	}
+	a.number = (int)f;
+	push(a);
+}
+
+void
 libcall(void)
 {
 	int n = pop().number;
@@ -556,6 +591,8 @@ struct word primitives[] =
 	{"dup", 0, C_NATIVE, {dupl}},
 	{"swap", 0, C_NATIVE, {swap}},
 	{"resolve", 0, C_NATIVE, {resolve}},
+	{"load", 0, C_NATIVE, {load}},
+	{"import", 0, C_NATIVE, {import}},
 	{"libcall", 0, C_NATIVE, {libcall}},
 	{"execute", 0, C_NATIVE, {execute}},
 	{":noname", 1024, C_NATIVE, {noname}},
