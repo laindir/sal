@@ -53,14 +53,6 @@ rpop(void)
 	return t;
 }
 
-enum state
-{
-	S_INTERPRET,
-	S_COMPILE
-};
-
-enum state state;
-
 void *dict;
 
 enum codetype
