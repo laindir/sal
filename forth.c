@@ -14,6 +14,11 @@ token rstack[STACK_SIZE];
 void
 push(token t)
 {
+	if(stack[0].number + 1 == STACK_SIZE)
+	{
+		fprintf(stderr, "Stack overflow\n");
+		return;
+	}
 	stack[++stack[0].number] = t;
 }
 
@@ -27,6 +32,11 @@ token
 pop(void)
 {
 	token t = stack[stack[0].number];
+	if(stack[0].number == 0)
+	{
+		fprintf(stderr, "Stack underflow\n");
+		return t;
+	}
 	stack[stack[0].number].number = 0;
 	stack[0].number--;
 	return t;
@@ -35,6 +45,11 @@ pop(void)
 void
 rpush(token t)
 {
+	if(rstack[0].number + 1 == STACK_SIZE)
+	{
+		fprintf(stderr, "Return stack overflow\n");
+		return;
+	}
 	rstack[++rstack[0].number] = t;
 }
 
@@ -48,6 +63,11 @@ token
 rpop(void)
 {
 	token t = rstack[rstack[0].number];
+	if(rstack[0].number == 0)
+	{
+		fprintf(stderr, "Return stack underflow\n");
+		return t;
+	}
 	rstack[rstack[0].number].number = 0;
 	rstack[0].number--;
 	return t;
@@ -232,6 +252,10 @@ libcall(void)
 		break;
 	case 7:
 		result.number = ((int (*)(int, int, int, int, int, int, int))f)(a1, a2, a3, a4, a5, a6, a7);
+		break;
+	default:
+		fprintf(stderr, "libcall currently limited to 7 arguments\n");
+		result.number = 0;
 		break;
 	}
 	push(result);
@@ -426,21 +450,20 @@ read_word(void)
 		return yylval.string;
 	case T_NUMBER:
 		fprintf(stderr, "Expected word, got number: %d\n", yylval.number);
-		exit(EXIT_FAILURE);
 		break;
 	case T_STRING:
 		fprintf(stderr, "Expected word, got string: \"%s\"\n", yylval.string);
-		exit(EXIT_FAILURE);
 		break;
 	case 0:
 		fprintf(stderr, "Unexpected end of file\n");
-		exit(EXIT_FAILURE);
 		break;
 	}
 	return NULL;
 }
 
 int compilation_depth;
+
+struct word *noname_word;
 
 void
 define(void)
@@ -453,13 +476,11 @@ define(void)
 	}
 	else
 	{
-		fprintf(stderr, "Nested definitions are not allowed\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "Nested definitions are not allowed, treating as :noname\n");
+		usercode_append(&current_word->code.user, noname_word);
 	}
 	compilation_depth++;
 }
-
-struct word *noname_word;
 
 void
 noname(void)
