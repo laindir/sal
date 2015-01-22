@@ -135,7 +135,6 @@ lookup(const char *s)
 	if(!w)
 	{
 		fprintf(stderr, "Word not found: %s\n", yylval.string);
-		exit(EXIT_FAILURE);
 	}
 	return *w;
 }
