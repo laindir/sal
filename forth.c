@@ -202,55 +202,57 @@ import(void)
 	push(a);
 }
 
+union nary
+{
+	int n;
+	int (*f0)(void);
+	int (*f1)(int);
+	int (*f2)(int,int);
+	int (*f3)(int,int,int);
+	int (*f4)(int,int,int,int);
+	int (*f5)(int,int,int,int,int);
+	int (*f6)(int,int,int,int,int,int);
+	int (*f7)(int,int,int,int,int,int,int);
+};
+
 void
 libcall(void)
 {
 	int n = pop().number;
-	int (*f)(void) = (int (*)(void))pop().number;
+	union nary f;
 	token result;
-	int a1;
-	int a2;
-	int a3;
-	int a4;
-	int a5;
-	int a6;
-	int a7;
-	switch(n)
+	int a[7];
+	int i;
+	f.n = pop().number;
+	for(i = n; i--;)
 	{
-	case 7: a7 = pop().number;
-	case 6: a6 = pop().number;
-	case 5: a5 = pop().number;
-	case 4: a4 = pop().number;
-	case 3: a3 = pop().number;
-	case 2: a2 = pop().number;
-	case 1: a1 = pop().number;
-	case 0: break;
+		a[i] = pop().number;
 	}
 	switch(n)
 	{
 	case 0:
-		result.number = f();
+		result.number = f.f0();
 		break;
 	case 1:
-		result.number = ((int (*)(int))f)(a1);
+		result.number = f.f1(a[0]);
 		break;
 	case 2:
-		result.number = ((int (*)(int, int))f)(a1, a2);
+		result.number = f.f2(a[0],a[1]);
 		break;
 	case 3:
-		result.number = ((int (*)(int, int, int))f)(a1, a2, a3);
+		result.number = f.f3(a[0],a[1],a[2]);
 		break;
 	case 4:
-		result.number = ((int (*)(int, int, int, int))f)(a1, a2, a3, a4);
+		result.number = f.f4(a[0],a[1],a[2],a[3]);
 		break;
 	case 5:
-		result.number = ((int (*)(int, int, int, int, int))f)(a1, a2, a3, a4, a5);
+		result.number = f.f5(a[0],a[1],a[2],a[3],a[4]);
 		break;
 	case 6:
-		result.number = ((int (*)(int, int, int, int, int, int))f)(a1, a2, a3, a4, a5, a6);
+		result.number = f.f6(a[0],a[1],a[2],a[3],a[4],a[5]);
 		break;
 	case 7:
-		result.number = ((int (*)(int, int, int, int, int, int, int))f)(a1, a2, a3, a4, a5, a6, a7);
+		result.number = f.f7(a[0],a[1],a[2],a[3],a[4],a[5],a[6]);
 		break;
 	default:
 		fprintf(stderr, "libcall currently limited to 7 arguments\n");
