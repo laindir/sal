@@ -131,10 +131,16 @@ struct word *
 lookup(const char *s)
 {
 	struct word **w;
+	if(!s)
+	{
+		fprintf(stderr, "Word not found: %s\n", yylval.string);
+		return NULL;
+	}
 	w = tfind(&s, &dict, cmp);
 	if(!w)
 	{
 		fprintf(stderr, "Word not found: %s\n", yylval.string);
+		return NULL;
 	}
 	return *w;
 }
@@ -563,6 +569,10 @@ see(void)
 	struct word *w;
 	struct word **ip;
 	w = lookup(read_word());
+	if(!w)
+	{
+		return;
+	}
 	switch(w->codetype)
 	{
 	case C_NATIVE:
@@ -711,6 +721,10 @@ process_token(enum type type)
 		break;
 	case T_WORD:
 		w = lookup(yylval.string);
+		if(!w)
+		{
+			return;
+		}
 		do_word(w);
 		break;
 	}
