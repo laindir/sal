@@ -1,16 +1,16 @@
 #include "forth.h"
 #include "lexer.h"
-
-int fargc;
-char **fargv;
+char *strdup(const char *);
+int getopt(int argc, char * const argv[], const char *optstring);
+extern char *optarg;
+extern int optind;
 
 int
 yywrap(void)
 {
-	static int i;
-	if(++i < fargc)
+	if(rtop().number)
 	{
-		yyin = strcmp(fargv[i], "-") == 0 ? stdin : fopen(fargv[i], "r");
+		yyin = (FILE *)rpop().number;
 		return 0;
 	}
 	else
@@ -24,11 +24,31 @@ main(int argc, char *argv[])
 {
 	int t;
 	init();
-	if(argc > 1)
+	switch(getopt(argc, argv, "f:"))
 	{
-		fargc = argc;
-		fargv = argv;
-		yywrap();
+	case 'f':
+		yyin = fopen(optarg, "r");
+	}
+	for(t = optind; t < argc; t++)
+	{
+		errno = 0;
+		yylval.number = strtol(argv[t], NULL, 0);
+		if(errno == 0 && strpbrk(argv[t], "0123456789abcdefABCDEF"))
+		{
+			process_token(T_NUMBER);
+		}
+		else if(argv[t][0] == '"')
+		{
+			int l = strlen(argv[t]);
+			yylval.string = strdup(argv[t] + 1);
+			yylval.string[l - 2] = 0;
+			process_token(T_STRING);
+		}
+		else
+		{
+			yylval.string = argv[t];
+			process_token(T_WORD);
+		}
 	}
 	while((t = yylex()))
 	{

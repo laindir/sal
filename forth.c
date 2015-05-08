@@ -448,6 +448,16 @@ recurse(void)
 	usercode_append(&current_word->code.user, current_word);
 }
 
+void
+include(void)
+{
+	token a = pop();
+	token b;
+	b.number = (int)yyin;
+	rpush(b);
+	yyin = fopen(a.string, "r");
+}
+
 char *
 read_word(void)
 {
@@ -637,6 +647,7 @@ struct word primitives[] =
 	{"!", 0, C_NATIVE, {store}},
 	{"words", 0, C_NATIVE, {words}},
 	{"see", 1, C_NATIVE, {see}},
+	{"include", 0, C_NATIVE, {include}},
 };
 
 #define arrsz(arr) (sizeof(arr) / sizeof(arr[0]))
