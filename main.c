@@ -23,12 +23,19 @@ int
 main(int argc, char *argv[])
 {
 	int t;
-	init();
-	switch(getopt(argc, argv, "f:"))
+	while((t = getopt(argc, argv, "f:a")) != -1)
 	{
-	case 'f':
-		yyin = fopen(optarg, "r");
+		switch(t)
+		{
+		case 'a':
+			alt = 1;
+			break;
+		case 'f':
+			yyin = fopen(optarg, "r");
+			break;
+		}
 	}
+	init();
 	for(t = optind; t < argc; t++)
 	{
 		errno = 0;

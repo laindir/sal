@@ -650,18 +650,67 @@ struct word primitives[] =
 	{"include", 0, C_NATIVE, {include}},
 };
 
+struct word alt_primitives[] = 
+{
+	{"zret", 0, C_NATIVE, {zret}},
+	{">r", 0, C_NATIVE, {tor}},
+	{"r>", 0, C_NATIVE, {fromr}},
+	{"<", 0, C_NATIVE, {lt}},
+	{"=", 0, C_NATIVE, {eq}},
+	{"+", 0, C_NATIVE, {add}},
+	{"-", 0, C_NATIVE, {sub}},
+	{"*", 0, C_NATIVE, {mul}},
+	{"/", 0, C_NATIVE, {divi}},
+	{"%", 0, C_NATIVE, {mod}},
+	{".", 0, C_NATIVE, {print}},
+	{"{:", 1, C_NATIVE, {define}},
+	{"}", 1024, C_NATIVE, {end}},
+	{"?", 1, C_NATIVE, {literal}},
+	{"recurse", 1, C_NATIVE, {recurse}},
+	{"drop", 0, C_NATIVE, {drop}},
+	{"dup", 0, C_NATIVE, {dupl}},
+	{"swap", 0, C_NATIVE, {swap}},
+	{"load", 0, C_NATIVE, {load}},
+	{"import", 0, C_NATIVE, {import}},
+	{"libcall", 0, C_NATIVE, {libcall}},
+	{"->", 0, C_NATIVE, {execute}},
+	{"{", 1024, C_NATIVE, {noname}},
+	{"'", 1, C_NATIVE, {tick}},
+	{"&", 0, C_NATIVE, {and}},
+	{"|", 0, C_NATIVE, {or}},
+	{"^", 0, C_NATIVE, {xor}},
+	{"~", 0, C_NATIVE, {not}},
+	{"@", 0, C_NATIVE, {fetch}},
+	{"!", 0, C_NATIVE, {store}},
+	{"words", 0, C_NATIVE, {words}},
+	{"see", 1, C_NATIVE, {see}},
+	{"include", 0, C_NATIVE, {include}},
+};
+
+int alt;
+
 #define arrsz(arr) (sizeof(arr) / sizeof(arr[0]))
 
 void
 init(void)
 {
 	unsigned int i;
-	for(i = 0; i < arrsz(primitives); i++)
+	unsigned int n = alt ? arrsz(alt_primitives) : arrsz(primitives);
+	struct word *vocab = alt ? alt_primitives : primitives;
+	for(i = 0; i < n; i++)
 	{
-		tsearch(&primitives[i], &dict, cmp);
+		tsearch(&vocab[i], &dict, cmp);
 	}
-	noname_word = lookup(":noname");
-	end_word = lookup(";");
+	if(alt)
+	{
+		noname_word = lookup("{");
+		end_word = lookup("}");
+	}
+	else
+	{
+		noname_word = lookup(":noname");
+		end_word = lookup(";");
+	}
 }
 
 void
